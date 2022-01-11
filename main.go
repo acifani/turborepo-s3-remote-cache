@@ -48,23 +48,11 @@ func putArtifactHandler(ctx *gin.Context) {
 	slug := ctx.Query("slug")
 	hash := ctx.Param("hash")
 
-	if teamId == "" && slug == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "teamId or slug are required",
-		})
-		return
-	}
-
-	bucketDirectory := teamId
-	if slug != "" {
-		bucketDirectory = slug
-	}
-
 	uploader := ctx.MustGet("uploader").(*s3manager.Uploader)
 	config := ctx.MustGet("config").(*config.Config)
 	_, err := uploader.Upload(&s3manager.UploadInput{
 		Bucket: &config.AWSS3Bucket,
-		Key:    aws.String(bucketDirectory + "/" + hash),
+		Key:    getArtifactPath(teamId, slug, hash),
 		Body:   ctx.Request.Body,
 	})
 
@@ -83,24 +71,12 @@ func getArtifactHandler(ctx *gin.Context) {
 	slug := ctx.Query("slug")
 	hash := ctx.Param("hash")
 
-	if teamId == "" && slug == "" {
-		ctx.JSON(http.StatusBadRequest, gin.H{
-			"error": "teamId or slug are required",
-		})
-		return
-	}
-
-	bucketDirectory := teamId
-	if slug != "" {
-		bucketDirectory = slug
-	}
-
 	buffer := aws.NewWriteAtBuffer([]byte{})
 	downloader := ctx.MustGet("downloader").(*s3manager.Downloader)
 	config := ctx.MustGet("config").(*config.Config)
 	_, err := downloader.Download(buffer, &s3.GetObjectInput{
 		Bucket: &config.AWSS3Bucket,
-		Key:    aws.String(bucketDirectory + "/" + hash),
+		Key:    getArtifactPath(teamId, slug, hash),
 	})
 
 	if err != nil {
@@ -180,4 +156,17 @@ func configMiddleware(config *config.Config) gin.HandlerFunc {
 		ctx.Set("config", config)
 		ctx.Next()
 	}
+}
+
+func getArtifactPath(teamId, slug, hash string) *string {
+	bucketDirectory := teamId
+	if slug != "" {
+		bucketDirectory = slug
+	}
+
+	if bucketDirectory == "" {
+		return &hash
+	}
+
+	return aws.String(bucketDirectory + "/" + hash)
 }
