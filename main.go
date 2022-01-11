@@ -15,7 +15,10 @@ import (
 
 func main() {
 	config := config.Read()
+	gin.SetMode(gin.ReleaseMode)
+
 	router := gin.Default()
+	router.SetTrustedProxies(config.TrustedProxies)
 
 	v8 := router.Group("/v8", authTokenMiddleware(config.TurboAllowedTokens), configMiddleware(config), awsMiddleware(config))
 	{

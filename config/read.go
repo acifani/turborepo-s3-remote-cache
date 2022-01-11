@@ -14,11 +14,15 @@ type Config struct {
 	AWSS3Bucket         string
 	AWSS3ForcePathStyle bool
 	TurboAllowedTokens  []string
+	TrustedProxies      []string
 }
 
 func Read() *Config {
 	allowedTokensEnv := os.Getenv("TURBOREPO_ALLOWED_TOKENS")
 	allowedTokens := strings.Split(allowedTokensEnv, ",")
+
+	trustedProxiesEnv := os.Getenv("GIN_TRUSTED_PROXIES")
+	trustedProxies := strings.Split(trustedProxiesEnv, ",")
 
 	awsRegion := os.Getenv("AWS_REGION")
 	awsEndpoint := os.Getenv("AWS_ENDPOINT")
@@ -37,6 +41,7 @@ func Read() *Config {
 		AWSS3Bucket:         awsS3Bucket,
 		AWSS3ForcePathStyle: awsS3ForcePathStyle,
 		TurboAllowedTokens:  allowedTokens,
+		TrustedProxies:      trustedProxies,
 	}
 }
 
