@@ -1,0 +1,19 @@
+builds:
+  - goos:
+      - linux
+      - darwin
+      - windows
+    goarch:
+      - amd64
+      - arm64
+
+archives:
+  - format_overrides:
+      - goos: windows
+        format: zip
+
+dockers:
+  - image_templates:
+      - 'ghcr.io/acifani/turborepo-s3-remote-cache:{{ .Tag }}'
+      - 'ghcr.io/acifani/turborepo-s3-remote-cache:v{{ .Major }}'
+      - 'ghcr.io/acifani/turborepo-s3-remote-cache:latest'
