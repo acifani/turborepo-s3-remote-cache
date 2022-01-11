@@ -28,7 +28,10 @@ func main() {
 		private.GET("/status", statusHandler)
 	}
 
-	router.Run()
+	err := router.Run()
+	if err != nil {
+		panic(err)
+	}
 }
 
 func statusHandler(ctx *gin.Context) {
