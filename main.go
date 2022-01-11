@@ -2,9 +2,9 @@ package main
 
 import (
 	"net/http"
-	"os"
 	"strings"
 
+	"github.com/acifani/turborepo-s3-remote-cache/config"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
@@ -14,18 +14,10 @@ import (
 )
 
 func main() {
-	allowedTokensEnv := os.Getenv("TURBOREPO_ALLOWED_TOKENS")
-	allowedTokens := strings.Split(allowedTokensEnv, ",")
-
-	awsRegion := os.Getenv("AWS_REGION")
-	awsEndpoint := os.Getenv("AWS_ENDPOINT")
-	awsAccessKeyId := os.Getenv("AWS_ACCESS_KEY_ID")
-	awsSecretAccessKey := os.Getenv("AWS_SECRET_ACCESS_KEY")
-	awsSession := createAwsSession(awsRegion, awsAccessKeyId, awsSecretAccessKey, awsEndpoint)
-
+	config := config.Read()
 	router := gin.Default()
 
-	v8 := router.Group("/v8", authTokenMiddleware(allowedTokens), awsMiddleware(awsSession))
+	v8 := router.Group("/v8", authTokenMiddleware(config.TurboAllowedTokens), configMiddleware(config), awsMiddleware(config))
 	{
 		v8.GET("/artifacts/:hash", getArtifactHandler)
 		v8.PUT("/artifacts/:hash", putArtifactHandler)
@@ -63,8 +55,9 @@ func putArtifactHandler(ctx *gin.Context) {
 	}
 
 	uploader := ctx.MustGet("uploader").(*s3manager.Uploader)
+	config := ctx.MustGet("config").(*config.Config)
 	_, err := uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String("turborepo-cache"),
+		Bucket: &config.AWSS3Bucket,
 		Key:    aws.String(bucketDirectory + "/" + hash),
 		Body:   ctx.Request.Body,
 	})
@@ -98,8 +91,9 @@ func getArtifactHandler(ctx *gin.Context) {
 
 	buffer := aws.NewWriteAtBuffer([]byte{})
 	downloader := ctx.MustGet("downloader").(*s3manager.Downloader)
+	config := ctx.MustGet("config").(*config.Config)
 	_, err := downloader.Download(buffer, &s3.GetObjectInput{
-		Bucket: aws.String("turborepo-cache"),
+		Bucket: &config.AWSS3Bucket,
 		Key:    aws.String(bucketDirectory + "/" + hash),
 	})
 
@@ -149,13 +143,25 @@ func authTokenMiddleware(allowedTokens []string) gin.HandlerFunc {
 	}
 }
 
-func createAwsSession(awsRegion, awsAccessKeyId, awsSecretAccessKey, awsEndpoint string) *session.Session {
+func awsMiddleware(config *config.Config) gin.HandlerFunc {
+	session := createAwsSession(config)
+	return func(ctx *gin.Context) {
+		ctx.Set("awsSession", session)
+		ctx.Set("downloader", s3manager.NewDownloader(session))
+		ctx.Set("uploader", s3manager.NewUploader(session))
+		ctx.Next()
+	}
+}
+
+func createAwsSession(config *config.Config) *session.Session {
 	sess := session.Must(session.NewSession(&aws.Config{
-		Region:   &awsRegion,
-		Endpoint: &awsEndpoint,
+		Region:           &config.AWSRegion,
+		Endpoint:         &config.AWSEndpoint,
+		DisableSSL:       &config.AWSDisableSSL,
+		S3ForcePathStyle: &config.AWSS3ForcePathStyle,
 		Credentials: credentials.NewStaticCredentials(
-			awsAccessKeyId,
-			awsSecretAccessKey,
+			config.AWSAccessKeyID,
+			config.AWSSecretAccessKey,
 			"",
 		),
 	}))
@@ -163,11 +169,9 @@ func createAwsSession(awsRegion, awsAccessKeyId, awsSecretAccessKey, awsEndpoint
 	return sess
 }
 
-func awsMiddleware(session *session.Session) gin.HandlerFunc {
+func configMiddleware(config *config.Config) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		ctx.Set("awsSession", session)
-		ctx.Set("downloader", s3manager.NewDownloader(session))
-		ctx.Set("uploader", s3manager.NewUploader(session))
+		ctx.Set("config", config)
 		ctx.Next()
 	}
 }
