@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 	"strings"
 
@@ -57,6 +58,7 @@ func putArtifactHandler(ctx *gin.Context) {
 	})
 
 	if err != nil {
+		log.Println("[ERROR] Error while uploading artifact:", err.Error())
 		ctx.JSON(http.StatusInternalServerError, gin.H{
 			"error": err.Error(),
 		})
