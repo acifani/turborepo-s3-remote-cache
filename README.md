@@ -53,8 +53,32 @@ You will need to configure the API endpoint and the auth token.
 E.g.
 
 ```sh
-turbo run build --api="http://localhost:8080" --token="t0k3n" --team="my-team"
+export $TURBOREPO_TOKEN="some_t0k3n"
+turbo run build --api="http://localhost:8080" --team="my-team" --token=$TURBOREPO_TOKEN
 ```
+
+You will see this message if the remote cache has been correctly enabled.
+
+> `• Remote computation caching enabled`
 
 If you provide a team name (recommended), the cache will be stored in
 a dedicated directory within the bucket.
+
+### Config file
+
+You can also create a `.turbo/config.json` file and configure the API server and team id/slug there.
+
+E.g.
+
+```json
+{
+  "apiUrl": "http://localhost:8080",
+  "teamSlug": "my-team"
+}
+```
+
+and then run
+
+```sh
+turbo run build --token=$TURBOREPO_TOKEN
+```
